@@ -1,5 +1,6 @@
 package com.cl.screenpatrol
 
+import android.app.usage.UsageEvents
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
@@ -94,6 +95,7 @@ class appStats(context: Context) {
         val startofmonth = getStartOfMonthMinusToday()
         var startTime = midnight.timeInMillis
         var time = LocalTime.now()
+        var dayOfMonthTest = getTimeInMilly(8,calendar.get(Calendar.MONTH),calendar.get(Calendar.YEAR))
         var day = calendar.get(Calendar.DAY_OF_MONTH)
         var dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
         var month = calendar.get(Calendar.MONTH)
@@ -103,7 +105,7 @@ class appStats(context: Context) {
         randoList.forEach { entry->
             Log.d("DAY_TRIPS", "$entry")
         }
-        Log.d("DAY_TRIPS", "Millys at Start of month ${startofmonth} Millys at start of day ${startTime} Now ${now} ") // Now is the amount of millys since the day started
+        Log.d("DAY_TRIPS", "Millys at day of month $dayOfMonthTest") // Now is the amount of millys since the day started
     }
 
     fun getAppSpecficStats(name: String): MutableList<Long> {
@@ -141,7 +143,7 @@ class appStats(context: Context) {
             currentTime - startOfWeek,
             currentTime
         )
-      val app = usageThisWeekQuery[name]
+        val app = usageThisWeekQuery[name]
 
         return if (app != null) {
             if (days != 0) {
@@ -194,8 +196,82 @@ class appStats(context: Context) {
         }
     }
 
+    fun getTimeInMilly(day:Int, month: Int, year:Int): Long {
+        var calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 13);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        calendar.set(Calendar.DAY_OF_MONTH, day)
+        calendar.set(Calendar.MONTH, month)
+        return calendar.timeInMillis
+
+    }
 
 
+    fun getUsageByDayOfMonth(name:String, day: Int, month: Int, year: Int){
+
+
+
+        val allEvents = mutableListOf<UsageEvents.Event>()
+        val targetDate = getTimeInMilly(day,month,year)
+        var num:Long = 0
+        val event = usageStatsManager.queryEvents(targetDate, (targetDate + hourInMilly))
+
+        while (event.hasNextEvent()){
+          val currentEvent = UsageEvents.Event()
+            event.getNextEvent(currentEvent)
+            if(currentEvent.packageName == name){
+                if(currentEvent.eventType == UsageEvents.Event.ACTIVITY_RESUMED || currentEvent.eventType == UsageEvents.Event.ACTIVITY_PAUSED) {
+                          allEvents.add(currentEvent)
+                }
+              }
+            }
+        for (x in 0 until allEvents.size){
+            if (x == 0 && allEvents[x].eventType == UsageEvents.Event.ACTIVITY_PAUSED){
+                num += allEvents[x].timeStamp - targetDate
+                Log.d("TRIGGER", "ye")
+            }else if (allEvents[x].eventType == UsageEvents.Event.ACTIVITY_PAUSED){
+                num += allEvents[x].timeStamp - allEvents[x - 1].timeStamp
+            }else if (allEvents[x].eventType == UsageEvents.Event.ACTIVITY_STOPPED){
+                Log.d("TRIGGER", "STOP")
+            }
+        }
+        Log.d("TRIGGER", "Time ${num}")
+    }
+
+
+        /*   val usageThisMonthExToday = usageStatsManager.queryAndAggregateUsageStats(
+            targetDate,
+            (targetDate + hourInMilly)
+        )*/
+    /*    val app = usageThisMonthExToday[name]
+        if (app != null) {
+            Log.d("USAGE_TEST", "Usage of ${app.packageName} on $targetDate = ${app.totalTimeInForeground}")
+            Log.d("USAGE_TEST", "Last Time stamp ${app.lastTimeStamp} first ${app.firstTimeStamp}")
+        }else{
+            Log.d("USAGE_TEST", "NULL")
+            Log.d("USAGE_TEST", "Usage of end date = ${targetDate + (dayInMilly - 1)}")
+
+        }
+
+    /*        return if (app != null) {
+            app.totalTimeInForeground
+        } else{
+            0
+      }*/
+
+    }
+
+*/
+
+
+    fun getUsageByWeek(name: String){
+
+
+
+
+    }
 
 
 

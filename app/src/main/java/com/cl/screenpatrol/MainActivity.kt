@@ -10,11 +10,13 @@ import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import java.util.Calendar
 
 class MainActivity : AppCompatActivity() {
    private lateinit var adapt: listAdapter
    private lateinit var context: Context
    private lateinit var appStats: appStats
+   val calendar = Calendar.getInstance()
    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -52,7 +54,8 @@ class MainActivity : AppCompatActivity() {
        appStats.getAppSpecficStats("com.snapchat.android")
        adapt = listAdapter(appStats, context = this)
 
-
+        appStats.printSomeDateValues()
+       appStats.getUsageByDayOfMonth("com.snapchat.android", 7,calendar.get(Calendar.MONTH),calendar.get(Calendar.YEAR))
 
         val refernce_to = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvApps)
         refernce_to.adapter = adapt
