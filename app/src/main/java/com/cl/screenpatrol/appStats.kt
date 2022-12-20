@@ -1,16 +1,28 @@
 package com.cl.screenpatrol
 
+import android.annotation.SuppressLint
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.util.Log
+import com.github.mikephil.charting.data.BarEntry
+import java.text.SimpleDateFormat
+import java.time.Duration
 
-import java.time.LocalTime
 import java.util.Calendar
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.ExperimentalTime
 
 class appStats(context: Context) {
+    data class usageTimes(
+        var UsageToday: Long = 0,
+        var UsageThisWeek: Long = 0,
+        var averageUsageThisWeek: Long = 0,
+
+    )
 
     val weekInMilly = ((1000*3600*24) * 7)
     val dayInMilly = (1000*3600*24)
@@ -19,31 +31,13 @@ class appStats(context: Context) {
     var keysToSpecificAppQuery = mutableListOf<String>(
         "Usage Today",
         "Usage Past Week",
-        "Average Daily Usage (Past Week)",
-        "Average Daily Usage (Past Month)"
+        "Average Daily Usage (Past Week)"
     )
-
 
     private val usageStatsManager =
         context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
 
     val pm:PackageManager = context.packageManager
-
-    fun returnApp(timeFrame:Int): MutableMap<String, UsageStats> {
-        val currentTime = System.currentTimeMillis()
-        val usageEvents = usageStatsManager.queryAndAggregateUsageStats(
-            currentTime - timeFrame,
-            currentTime
-        )
-
-        Log.d("Size before filter", "${usageEvents.size}")
-
-       usageEvents.entries.removeIf{it.value.totalTimeInForeground.toInt() < 60000}
-
-
-
-      return usageEvents.toList().sortedByDescending {it.second.totalTimeInForeground }.toMap() as MutableMap<String, UsageStats>
-    }
 
     fun getMidNight(): Calendar { // Returns the amount of milliseconds since midnight of current day
         val midnight = Calendar.getInstance()
@@ -62,7 +56,7 @@ class appStats(context: Context) {
 
     }
 
-    fun getStartOfWeekMinusToday(): Long { // Returns the time in Milliseconds at the very start of the nearest past sunday
+    fun getTimeInMillySinceLastSunday(): Long { // Returns the time in Milliseconds at the very start of the nearest past sunday
         val calendar = Calendar.getInstance()
         val day = calendar.get(Calendar.DAY_OF_WEEK)
         val midnight = getMidNight()
@@ -70,7 +64,7 @@ class appStats(context: Context) {
         return midnight.timeInMillis - (fullDaysPassed * dayInMilly)
     }
 
-    fun getStartOfMonthMinusToday(): Long { // returns the time in Milliseconds at the first day of the month
+    fun getStartTimeInMillyOnFirstDayOfMonth(): Long { // returns the time in Milliseconds at the first day of the month
         val calendar = Calendar.getInstance()
         val midnight = getMidNight()
         val day = calendar.get(Calendar.DAY_OF_MONTH)
@@ -86,137 +80,50 @@ class appStats(context: Context) {
         return (fullDaysPassed * dayInMilly) + (Calendar.getInstance().timeInMillis - midnight.timeInMillis)
     }
 
+    fun getAppList(): MutableList<String> {
+        val appList:List<ApplicationInfo> = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+        var appFilteredList:MutableList<String> = mutableListOf()
+        appList.forEach { entry ->
+            if (entry.flags and ApplicationInfo.FLAG_SYSTEM == 0 ||
+                entry.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0) {
+                if (entry.packageName != null) {
+                    appFilteredList.add(entry.packageName)
+                }
+            }
+        }
+        return appFilteredList
 
+    }
 
-    fun printSomeDateValues(){
+    fun printSomeValues(){
+        val appList:List<ApplicationInfo> = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+        var appFilteredList:MutableList<ApplicationInfo> = mutableListOf()
+        appList.forEach { entry ->
+            if (entry.flags and ApplicationInfo.FLAG_SYSTEM == 0 ||
+                    entry.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP == 0) {
+                appFilteredList.add(entry)
+            }
+        }
+        Log.d("APP_LISTT", "Size of appList ${appList.size} Size of appFilteredList ${appFilteredList.size}")
+    }
+
+    private fun getTimeInMillyOfSpecificDateAndTime(day:Int): Long {
         val calendar = Calendar.getInstance()
-        val midnight = getMidNight()
-        val startofweek = getStartOfWeekMinusToday()
-        val startofmonth = getStartOfMonthMinusToday()
-        var startTime = midnight.timeInMillis
-        var time = LocalTime.now()
-        var dayOfMonthTest = getTimeInMilly(8,calendar.get(Calendar.MONTH),calendar.get(Calendar.YEAR))
-        var day = calendar.get(Calendar.DAY_OF_MONTH)
-        var dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-        var month = calendar.get(Calendar.MONTH)
-        var date = calendar.get(Calendar.DATE)
-        var now = Calendar.getInstance().timeInMillis - midnight.timeInMillis
-        var randoList = mutableListOf<Int>(day,dayOfWeek,month,date,)
-        randoList.forEach { entry->
-            Log.d("DAY_TRIPS", "$entry")
-        }
-        Log.d("DAY_TRIPS", "Millys at day of month $dayOfMonthTest") // Now is the amount of millys since the day started
-    }
-
-    fun getAppSpecficStats(name: String): MutableList<Long> {
-        val usageToday = getUsageToday(name)
-        val usageThisWeek = getUsageThisWeek(name)
-        val averageUsageThisWeek = getAverageUsageThisWeek(name)
-        val averageUsageThisMonth = getAverageUsageThisMonth(name)
-
-        return mutableListOf(usageToday, usageThisWeek, averageUsageThisWeek, averageUsageThisMonth)
-        // Log.d("TEST_LOGG", "Name $name $usageToday , ${usageThisWeek / 3600000} hrs, ${(usageThisWeek% 3600000) / 60000} mins , $averageUsageThisWeek , $averageUsageThisMonth")
-    }
-
-    fun getUsageToday(name: String): Long {
-        val midnight = getMidNight()
-        val currentTime = System.currentTimeMillis()
-        val usageTodayQuery = usageStatsManager.queryAndAggregateUsageStats(
-            midnight.timeInMillis,
-            currentTime
-        )
-        val app = usageTodayQuery[name]
-        return if (app != null) {
-                app.totalTimeInForeground
-        } else{
-            0
-        }
-
-    }
-
-    fun getUsageThisWeek(name: String): Long {
-        val midnight = getMidNight()
-        val startOfWeek = getStartOfWeek()
-        val days = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1
-        val currentTime = System.currentTimeMillis()
-        val usageThisWeekQuery = usageStatsManager.queryAndAggregateUsageStats(
-            currentTime - startOfWeek,
-            currentTime
-        )
-        val app = usageThisWeekQuery[name]
-
-        return if (app != null) {
-            if (days != 0) {
-                app.totalTimeInForeground / days
-            }else{
-                0
-            }
-        } else{
-            0
-        }
-
-    }
-
-    fun getAverageUsageThisWeek(name: String): Long {
-        val startOfTheWeek = getStartOfWeekMinusToday()
-        val midnight = getMidNight()
-        val days = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1
-        val usageThisWeekExToday = usageStatsManager.queryAndAggregateUsageStats(
-            startOfTheWeek,
-            (midnight.timeInMillis - 1) // So its up to but not including the first millisecond of the next day
-        )
-
-        val app = usageThisWeekExToday[name]
-
-        return if (app != null) {
-            if (days != 0) {
-                app.totalTimeInForeground / days
-            }else{
-                0
-            }
-        } else{
-            0
-        }
-    }
-
-    fun getAverageUsageThisMonth(name: String): Long{
-        val startOfTheMonth = getStartOfMonthMinusToday()
-        val midnight = getMidNight()
-        val days = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
-        val usageThisMonthExToday = usageStatsManager.queryAndAggregateUsageStats(
-            startOfTheMonth,
-            (midnight.timeInMillis - 1)
-        )
-        val app = usageThisMonthExToday[name]
-
-        return if (app != null){
-            app.totalTimeInForeground / days
-        }else{
-            0
-        }
-    }
-
-    fun getTimeInMilly(day:Int, month: Int, year:Int): Long {
-        var calendar = Calendar.getInstance()
-        calendar.set(Calendar.HOUR_OF_DAY, 13);
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
         calendar.set(Calendar.DAY_OF_MONTH, day)
-        calendar.set(Calendar.MONTH, month)
         return calendar.timeInMillis
 
     }
 
-
-    fun getUsageByDayOfMonth(name:String, day: Int, month: Int, year: Int){
-
-
-
+    @SuppressLint("SuspiciousIndentation")
+    fun getUsageByDayOfMonth(name:String, day: Int, month: Int, year: Int, hour: Int){
         val allEvents = mutableListOf<UsageEvents.Event>()
-        val targetDate = getTimeInMilly(day,month,year)
+        val targetDate = getTimeInMillyOfSpecificDateAndTime(day)
         var num:Long = 0
-        val event = usageStatsManager.queryEvents(targetDate, (targetDate + hourInMilly))
+        val event = usageStatsManager.queryEvents(targetDate, (targetDate + dayInMilly))
 
         while (event.hasNextEvent()){
           val currentEvent = UsageEvents.Event()
@@ -230,50 +137,178 @@ class appStats(context: Context) {
         for (x in 0 until allEvents.size){
             if (x == 0 && allEvents[x].eventType == UsageEvents.Event.ACTIVITY_PAUSED){
                 num += allEvents[x].timeStamp - targetDate
-                Log.d("TRIGGER", "ye")
+                Log.d("retard", "hour ${hour} step ${1} num ${(num/ 3600000)} hrs ${(num% 3600000) / 60000} mins")
             }else if (allEvents[x].eventType == UsageEvents.Event.ACTIVITY_PAUSED){
                 num += allEvents[x].timeStamp - allEvents[x - 1].timeStamp
-            }else if (allEvents[x].eventType == UsageEvents.Event.ACTIVITY_STOPPED){
-                Log.d("TRIGGER", "STOP")
+                Log.d("retard", "hour ${hour} step ${2} num ${(num/ 3600000)} hrs ${(num% 3600000) / 60000} mins total ${num}")
+            }else if (x == (allEvents.size - 1) && allEvents[x].eventType == UsageEvents.Event.ACTIVITY_RESUMED){
+                num += (targetDate + hourInMilly) - allEvents[x].timeStamp
+                Log.d("retard", "hour ${hour} step ${3} num ${(num/ 3600000)} hrs ${(num% 3600000) / 60000} mins")
             }
         }
-        Log.d("TRIGGER", "Time ${num}")
+        allEvents.forEach { entry ->
+            Log.d("asscheeks", "${entry.eventType} Hour ${hour} timestamp ${entry.timeStamp}")
+        }
+        Log.d("TRIGGER_NIGGER", "Hour ${hour} Time ${(num/ 3600000)} hrs ${(num% 3600000) / 60000} mins SIZE ${allEvents.size}")
     }
 
+    fun getUsageOfAllApps(startTime:Long, endTime:Long, appList: MutableList<String>): Map<String, Long> {
 
-        /*   val usageThisMonthExToday = usageStatsManager.queryAndAggregateUsageStats(
-            targetDate,
-            (targetDate + hourInMilly)
-        )*/
-    /*    val app = usageThisMonthExToday[name]
-        if (app != null) {
-            Log.d("USAGE_TEST", "Usage of ${app.packageName} on $targetDate = ${app.totalTimeInForeground}")
-            Log.d("USAGE_TEST", "Last Time stamp ${app.lastTimeStamp} first ${app.firstTimeStamp}")
+        val allEvents = mutableListOf<UsageEvents.Event>()
+        val usageOfAllApps = mutableMapOf<String, Long>()
+        val event = usageStatsManager.queryEvents(startTime, endTime)
+        var events = 0
+        while (event.hasNextEvent()){
+            val currentEvent = UsageEvents.Event()
+            event.getNextEvent(currentEvent)
+                if(currentEvent.eventType == UsageEvents.Event.ACTIVITY_RESUMED || currentEvent.eventType == UsageEvents.Event.ACTIVITY_PAUSED) {
+                    allEvents.add(currentEvent)
+            }
+        }
+
+            for (x in 0 until appList.size){
+                usageOfAllApps.put(appList[x], 0)
+                for (y in 0 until allEvents.size){
+                    if (appList[x] == allEvents[y].packageName){
+                        if (y == 0 && allEvents[y].eventType == UsageEvents.Event.ACTIVITY_PAUSED){
+                            usageOfAllApps.put(appList[x], (usageOfAllApps[appList[x]]!! + (allEvents[y].timeStamp - startTime))  )
+
+                        }else if (allEvents[y].eventType == UsageEvents.Event.ACTIVITY_PAUSED && allEvents[y - 1].eventType != 2){
+                            usageOfAllApps.put(appList[x], (usageOfAllApps[appList[x]]!! + (allEvents[y].timeStamp - allEvents[y - 1].timeStamp)))
+                            if(allEvents[y].packageName == "com.google.android.youtube"){
+                                Log.d("getusageofallapps", "${allEvents[y].packageName} num ${usageOfAllApps.get("com.google.android.youtube")}  timestamp ${allEvents[y].timeStamp} previous ${allEvents[y - 1].eventType}")
+                            }
+                        }else if (y == allEvents.size - 1 && allEvents[y].eventType == UsageEvents.Event.ACTIVITY_RESUMED){
+                            usageOfAllApps.put(appList[x], (usageOfAllApps[appList[x]]!! + (endTime - allEvents[y].timeStamp)))
+                        }
+                    }
+                }
+            }
+            for(x in 0 until allEvents.size){
+                if (allEvents[x].packageName == "com.google.android.youtube" ){
+                    events += 1
+                }
+            }
+            usageOfAllApps.entries.removeIf { it.value <= 6000 }
+        Log.d("USAGE_BY_DONG", "all apps size ${events} ")
+
+        return usageOfAllApps.toList().sortedByDescending { it.second }.toMap()
+    }
+
+    fun getUsageOfSpecificApp(
+        name: String,
+        startTime: Long,
+        endTime: Long,
+    ): Long {
+
+        var num = 0L
+        val allEvents = mutableListOf<UsageEvents.Event>()
+        val event = usageStatsManager.queryEvents(startTime, endTime)
+
+        while (event.hasNextEvent()) {
+            val currentEvent = UsageEvents.Event()
+            event.getNextEvent(currentEvent)
+            if (currentEvent.packageName == name) {
+                if (currentEvent.eventType == UsageEvents.Event.ACTIVITY_RESUMED || currentEvent.eventType == UsageEvents.Event.ACTIVITY_PAUSED) {
+                    allEvents.add(currentEvent)
+                }
+            }
+        }
+
+
+        Log.d("USAGE_BY_DONG", "sepcific app size ${name} ${allEvents.size} ")
+        for (x in 0 until allEvents.size) {
+            if (x == 0 && allEvents[x].eventType == UsageEvents.Event.ACTIVITY_PAUSED) {
+                num += (allEvents[x].timeStamp - startTime)
+                Log.d("USAGE_BY_NIG", "sepcific app queue 1 ${name} num ${num}  timestamp ${allEvents[x].timeStamp} ")
+            } else if (allEvents[x].eventType == UsageEvents.Event.ACTIVITY_PAUSED && allEvents[x - 1].eventType != 2) {
+                num += (allEvents[x].timeStamp - allEvents[x - 1].timeStamp)
+                Log.d("getspecificapp", "${name} num ${num}  timestamp ${allEvents[x].timeStamp} previous ${allEvents[x - 1].eventType} ")
+            } else if (x == (allEvents.size - 1) && allEvents[x].eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                Log.d("USAGE_BY_NIG", "sepcific app queue ${name} num ${num} endtime ${endTime} timestamp ${allEvents[x].timeStamp} ")
+                num += (endTime - allEvents[x].timeStamp)
+            }
+        }
+
+        return num
+    }
+
+    fun getUsagesWAveragesForSpecificApp(name: String): usageTimes {
+        val usage:usageTimes = usageTimes()
+        val calendar = Calendar.getInstance()
+        val midNight = getMidNight().timeInMillis
+        val rightNow = System.currentTimeMillis()
+        val startOfMonth = getStartTimeInMillyOnFirstDayOfMonth()
+        val startOfWeek = getTimeInMillySinceLastSunday()
+        val daysThisWeek = calendar.get(Calendar.DAY_OF_WEEK)
+        val daysThisMonth = calendar.get(Calendar.DAY_OF_MONTH)
+        val test = Calendar.getInstance()
+        test.set(Calendar.DAY_OF_MONTH, daysThisMonth + 15)
+
+        usage.UsageToday = getUsageOfSpecificApp(name, midNight, rightNow )
+        Log.d("Calendar$$$", "${getTimeInMillyOfSpecificDateAndTime((daysThisMonth - 1) - 30)}")
+        usage.UsageThisWeek = getUsageOfSpecificApp(name, startOfWeek, rightNow)
+        if (daysThisWeek == 0){
+            usage.averageUsageThisWeek = 0
+
         }else{
-            Log.d("USAGE_TEST", "NULL")
-            Log.d("USAGE_TEST", "Usage of end date = ${targetDate + (dayInMilly - 1)}")
+            usage.averageUsageThisWeek = usage.UsageThisWeek / daysThisWeek
 
         }
 
-    /*        return if (app != null) {
-            app.totalTimeInForeground
-        } else{
-            0
-      }*/
-
-    }
-
-*/
-
-
-    fun getUsageByWeek(name: String){
-
-
-
-
+        return usage
     }
 
 
+
+    @OptIn(ExperimentalTime::class)
+    fun getUsageDayByDayInWeek(name: String): MutableList<Long> {
+        val calendar = Calendar.getInstance()
+        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+        val usageValuesByDay = mutableListOf<Long>()
+        val daysList: List<String> = listOf<String>("Sun", "Mon", "Tues", "Weds", "Thurs", "Fri", "Sat")
+        var dayIt = getTimeInMillySinceLastSunday()
+        for(x in 0..6){
+            if(x == 0){
+                Log.d("getspecificapp", "-----------------------------------------------")
+                usageValuesByDay.add(getUsageOfSpecificApp(name, dayIt, (dayIt + dayInMilly) - 1))
+                dayIt+= dayInMilly
+                Log.d("getspecificapp", "-----------------------------------------------")
+            }else if(x == dayOfWeek){
+                usageValuesByDay.add(getUsageOfSpecificApp(name, dayIt, System.currentTimeMillis()))
+            }else if (x > dayOfWeek){
+                usageValuesByDay.add(0)
+            } else{
+                usageValuesByDay.add(getUsageOfSpecificApp(name, dayIt, (dayIt + dayInMilly) - 1))
+                dayIt += dayInMilly
+            }
+
+        }
+
+        usageValuesByDay.forEach { entry ->
+
+
+
+        }
+
+        return usageValuesByDay
+    }
+
+    data class formatedMilliseconds(
+        var hours:Float = 0f,
+        var mins:Float = 0f,
+        var secs:Float = 0f
+            )
+
+    fun formatMilliseconds(entry: Long): formatedMilliseconds {
+        val formatted = formatedMilliseconds()
+        formatted.hours = (entry / hourInMilly).toFloat()
+        formatted.mins = ((entry % hourInMilly) / 60000).toFloat()
+        formatted.secs = (((entry % hourInMilly) % 60000) / 1000).toFloat()
+
+        Log.d("USAGE_BY_DAY", "${formatted.hours} H ${formatted.mins} m ${formatted.secs} s")
+        return formatted
+    }
 
 
 }

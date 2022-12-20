@@ -9,13 +9,18 @@ import android.provider.Settings
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.room.Room
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 class MainActivity : AppCompatActivity() {
    private lateinit var adapt: listAdapter
    private lateinit var context: Context
    private lateinit var appStats: appStats
+   private lateinit var appMap:MutableMap<String, Long>
    val calendar = Calendar.getInstance()
    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,26 +54,44 @@ class MainActivity : AppCompatActivity() {
            }
        }
 */
+        val name = "com.snapchat.android"
 
-        appStats = appStats(context)
-       appStats.getAppSpecficStats("com.snapchat.android")
+       appStats = appStats(context)
+
+     /*  val usageOfApp = appStats.getUsageOfSpecificApp(name, appStats.getMidNight().timeInMillis - appStats.dayInMilly, appStats.getMidNight().timeInMillis)
+       val usages = appStats.getUsagesWAveragesForSpecificApp(name)
+       val start = appStats.getMidNight().timeInMillis - appStats.dayInMilly
+       val appList = appStats.getAppList()*/
        adapt = listAdapter(appStats, context = this)
+       //appStats.getUsageDayByDayInWeek(name)
 
-        appStats.printSomeDateValues()
-       appStats.getUsageByDayOfMonth("com.snapchat.android", 7,calendar.get(Calendar.MONTH),calendar.get(Calendar.YEAR))
+       //val num = 5
+
+    //    appStats.printSomeValues()
+  //     appStats.getUsageByDayOfMonth("com.google.android.youtube", num,calendar.get(Calendar.MONTH),calendar.get(Calendar.YEAR),0)
 
         val refernce_to = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvApps)
         refernce_to.adapter = adapt
         refernce_to.layoutManager = LinearLayoutManager(this)
+        val ref = this
+        val ex = usageStats("test1", "Fug dude")
+        val db = Room.databaseBuilder(
+            applicationContext,
+            AppDataBase::class.java, "usage"
+        ).build()
 
- /*      adapt.setOnItemClickListener(object : listAdapter.onItemClickListener{
-           override fun onItemClick(position: Int) {
 
-               navTOAppSpecificPage()
+
+
+       lifecycleScope.launch(Dispatchers.IO){
+
+               val usageDoa = db.usageDao()
+               val test = usageDoa.getUsageStat("test1")
+               Log.d("DATABASEONLYFF", test)
            }
        }
-       )*/
-   }
+
+
 
 
 

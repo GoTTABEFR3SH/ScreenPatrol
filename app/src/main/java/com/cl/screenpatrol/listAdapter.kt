@@ -17,12 +17,15 @@ import androidx.recyclerview.widget.RecyclerView
 
 class listAdapter(
     private var appStats:appStats,
-    var keys: List<String> = appStats.returnApp(appStats.weekInMilly).toList().map { it.first },
-    private var values:List<Long> = appStats.returnApp(appStats.weekInMilly).toList().map { it.second.totalTimeInForeground },
+    private val appList: MutableList<String> = appStats.getAppList(),
+    //var keys: List<String> = appStats.returnApp(appStats.weekInMilly).toList().map { it.first },
+    //private var values:List<Long> = appStats.returnApp(appStats.weekInMilly).toList().map { it.second.totalTimeInForeground },
+    var keys:List<String> = appStats.getUsageOfAllApps(appStats.getTimeInMillySinceLastSunday(), System.currentTimeMillis(), appList).toList().map { it.first },
+    var values:List<Long> = appStats.getUsageOfAllApps(appStats.getTimeInMillySinceLastSunday(), System.currentTimeMillis(), appList).toList().map { it.second },
     private val context: Context
 
 ): RecyclerView.Adapter<listAdapter.appStatsViewHolder>(){
-    class appStatsViewHolder(itemView: View /*, clickListener: onItemClickListener*/): RecyclerView.ViewHolder(itemView){
+    class appStatsViewHolder(itemView: View ): RecyclerView.ViewHolder(itemView){
         val timeUsedText:TextView
         val appNameText:TextView
         val appLogoImage:ImageView
@@ -30,27 +33,11 @@ class listAdapter(
             appNameText = itemView.findViewById(R.id.appName)
             timeUsedText = itemView.findViewById(R.id.timeUsed)
             appLogoImage = itemView.findViewById(R.id.appLogo)
-           /* itemView.setOnClickListener {
-                clickListener.onItemClick(bindingAdapterPosition)
-            }*/
         }
 
     }
 
-/*    private lateinit var mListener: onItemClickListener
 
-    interface onItemClickListener{
-        fun onItemClick(position: Int){
-
-        }
-    }
-
-
-
-    fun setOnItemClickListener(clickListener: onItemClickListener){
-        mListener = clickListener
-    }
-*/
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): appStatsViewHolder {
        return appStatsViewHolder(
            LayoutInflater.from(parent.context).inflate(
@@ -58,7 +45,7 @@ class listAdapter(
                parent,
                false
            ),
-          // mListener
+
        )
     }
 
@@ -66,7 +53,7 @@ class listAdapter(
     override fun onBindViewHolder(holder: appStatsViewHolder, position: Int) {
         val ai: ApplicationInfo = appStats.pm.getApplicationInfo(
             keys[position],
-            android.content.pm.PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong())
+            PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong())
         )
         val icon:Drawable = context.packageManager.getApplicationIcon(keys[position])
         holder.appLogoImage.setImageDrawable(icon)

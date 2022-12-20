@@ -15,9 +15,12 @@ import androidx.recyclerview.widget.RecyclerView
 class appSpecificListAdapter(
     private var name:String,
     private var appStats:appStats,
+    private var usage: appStats.usageTimes = appStats.getUsagesWAveragesForSpecificApp(name),
     private var keys: List<String> = appStats.keysToSpecificAppQuery,
-    private var values:List<Long> = appStats.getAppSpecficStats(name),
+    private var values:List<Long> = listOf(usage.UsageToday, usage.UsageThisWeek, usage.averageUsageThisWeek),
     private val context: Context
+
+
 
 ): RecyclerView.Adapter<appSpecificListAdapter.specificAppStatsViewHolder>(){
     class specificAppStatsViewHolder(itemView: View): RecyclerView.ViewHolder(itemView){
