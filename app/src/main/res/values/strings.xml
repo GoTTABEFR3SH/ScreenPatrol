@@ -2,6 +2,14 @@
     <string name="app_name">Screen Patrol</string>
     <string name="formattedAppTime">%1d Hrs %2d Mns</string>
     <string name="app">APP</string>
+    <string name="limits">Modify Time Limit</string>
+    <string name="hours">Hours</string>
+    <string name="mins">Mins</string>
+    <string name="confirmButton">Confirm</string>
+    <string name="CancelButton">Cancel</string>
+    <string name="RemoveLimit">Remove Limit</string>
+
+
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

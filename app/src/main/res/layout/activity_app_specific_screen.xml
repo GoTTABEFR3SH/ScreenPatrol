@@ -7,20 +7,51 @@
     tools:context=".AppSpecificScreen">
 
 
-    <com.github.mikephil.charting.charts.BarChart
-        android:id="@+id/barChartView"
-        android:layout_width="match_parent"
-        android:layout_height="300sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+
+        <com.github.mikephil.charting.charts.BarChart
+            android:id="@+id/barChartView"
+            android:background="@drawable/graphborder"
+            android:layout_width="match_parent"
+            android:layout_height="250sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvSpecificApp"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:layout_marginTop="300sp"
+
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.444"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/button_limit"
+        android:layout_width="match_parent"
+        android:layout_height="50sp"
+        android:layout_marginTop="192dp"
+        android:background="@drawable/responsive_button_layout_white_to_black"
+        android:text="@string/limits"
+        android:textColor="@drawable/button_responsive_text_color_blk_to_wht"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="@id/rvSpecificApp" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/RemoveLimit_bttn"
+        android:layout_width="match_parent"
+        android:layout_height="50sp"
+        android:layout_marginTop="256dp"
+        android:background="@drawable/responsive_button_layout_white_to_black"
+        android:text="@string/RemoveLimit"
+        android:textColor="@drawable/button_responsive_text_color_blk_to_wht"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/rvSpecificApp" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

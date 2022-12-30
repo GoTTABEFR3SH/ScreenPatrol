@@ -21,17 +21,16 @@ class appStats(context: Context) {
         var UsageToday: Long = 0,
         var UsageThisWeek: Long = 0,
         var averageUsageThisWeek: Long = 0,
-
     )
 
-    val weekInMilly = ((1000*3600*24) * 7)
     val dayInMilly = (1000*3600*24)
     val hourInMilly = (1000*3600)
+    val minInMilly = (60000)
 
     var keysToSpecificAppQuery = mutableListOf<String>(
         "Usage Today",
         "Usage Past Week",
-        "Average Daily Usage (Past Week)"
+        "Average Daily Usage"
     )
 
     private val usageStatsManager =
@@ -47,14 +46,6 @@ class appStats(context: Context) {
         midnight.set(Calendar.MILLISECOND, 0);
         return midnight;
     }
-    fun getStartOfWeek(): Long { // Returns the amount of milliseconds since the start of the week at midnight on Sunday
-        val calendar = Calendar.getInstance()
-        val midNight = getMidNight()
-        val day = calendar.get(Calendar.DAY_OF_WEEK)
-        val fullDaysPassed = day - 1
-        return (fullDaysPassed * dayInMilly) + (Calendar.getInstance().timeInMillis - midNight.timeInMillis)
-
-    }
 
     fun getTimeInMillySinceLastSunday(): Long { // Returns the time in Milliseconds at the very start of the nearest past sunday
         val calendar = Calendar.getInstance()
@@ -64,20 +55,28 @@ class appStats(context: Context) {
         return midnight.timeInMillis - (fullDaysPassed * dayInMilly)
     }
 
+    data class formatedMilliseconds(
+        var hours:Float = 0f,
+        var mins:Float = 0f,
+        var secs:Float = 0f
+    )
+
+    fun formatMilliseconds(entry: Long): formatedMilliseconds {
+        val formatted = formatedMilliseconds()
+        formatted.hours = (entry / hourInMilly).toFloat()
+        formatted.mins = ((entry % hourInMilly) / 60000).toFloat()
+        formatted.secs = (((entry % hourInMilly) % 60000) / 1000).toFloat()
+
+        Log.d("USAGE_BY_DAY", "${formatted.hours} H ${formatted.mins} m ${formatted.secs} s")
+        return formatted
+    }
+
     fun getStartTimeInMillyOnFirstDayOfMonth(): Long { // returns the time in Milliseconds at the first day of the month
         val calendar = Calendar.getInstance()
         val midnight = getMidNight()
         val day = calendar.get(Calendar.DAY_OF_MONTH)
         val fullDaysPassed = day - 1
         return midnight.timeInMillis - (fullDaysPassed * dayInMilly)
-    }
-
-    fun getStartOfMonth(): Long { // Returns the number of milliseconds since the start of the month up to realtime
-        val calendar = Calendar.getInstance()
-        val midnight = getMidNight()
-        val day = calendar.get(Calendar.DAY_OF_MONTH)
-        val fullDaysPassed = day - 1
-        return (fullDaysPassed * dayInMilly) + (Calendar.getInstance().timeInMillis - midnight.timeInMillis)
     }
 
     fun getAppList(): MutableList<String> {
@@ -95,18 +94,6 @@ class appStats(context: Context) {
 
     }
 
-    fun printSomeValues(){
-        val appList:List<ApplicationInfo> = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
-        var appFilteredList:MutableList<ApplicationInfo> = mutableListOf()
-        appList.forEach { entry ->
-            if (entry.flags and ApplicationInfo.FLAG_SYSTEM == 0 ||
-                    entry.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP == 0) {
-                appFilteredList.add(entry)
-            }
-        }
-        Log.d("APP_LISTT", "Size of appList ${appList.size} Size of appFilteredList ${appFilteredList.size}")
-    }
-
     private fun getTimeInMillyOfSpecificDateAndTime(day:Int): Long {
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.HOUR_OF_DAY, 0);
@@ -116,40 +103,6 @@ class appStats(context: Context) {
         calendar.set(Calendar.DAY_OF_MONTH, day)
         return calendar.timeInMillis
 
-    }
-
-    @SuppressLint("SuspiciousIndentation")
-    fun getUsageByDayOfMonth(name:String, day: Int, month: Int, year: Int, hour: Int){
-        val allEvents = mutableListOf<UsageEvents.Event>()
-        val targetDate = getTimeInMillyOfSpecificDateAndTime(day)
-        var num:Long = 0
-        val event = usageStatsManager.queryEvents(targetDate, (targetDate + dayInMilly))
-
-        while (event.hasNextEvent()){
-          val currentEvent = UsageEvents.Event()
-            event.getNextEvent(currentEvent)
-            if(currentEvent.packageName == name){
-                if(currentEvent.eventType == UsageEvents.Event.ACTIVITY_RESUMED || currentEvent.eventType == UsageEvents.Event.ACTIVITY_PAUSED) {
-                          allEvents.add(currentEvent)
-                }
-              }
-            }
-        for (x in 0 until allEvents.size){
-            if (x == 0 && allEvents[x].eventType == UsageEvents.Event.ACTIVITY_PAUSED){
-                num += allEvents[x].timeStamp - targetDate
-                Log.d("retard", "hour ${hour} step ${1} num ${(num/ 3600000)} hrs ${(num% 3600000) / 60000} mins")
-            }else if (allEvents[x].eventType == UsageEvents.Event.ACTIVITY_PAUSED){
-                num += allEvents[x].timeStamp - allEvents[x - 1].timeStamp
-                Log.d("retard", "hour ${hour} step ${2} num ${(num/ 3600000)} hrs ${(num% 3600000) / 60000} mins total ${num}")
-            }else if (x == (allEvents.size - 1) && allEvents[x].eventType == UsageEvents.Event.ACTIVITY_RESUMED){
-                num += (targetDate + hourInMilly) - allEvents[x].timeStamp
-                Log.d("retard", "hour ${hour} step ${3} num ${(num/ 3600000)} hrs ${(num% 3600000) / 60000} mins")
-            }
-        }
-        allEvents.forEach { entry ->
-            Log.d("asscheeks", "${entry.eventType} Hour ${hour} timestamp ${entry.timeStamp}")
-        }
-        Log.d("TRIGGER_NIGGER", "Hour ${hour} Time ${(num/ 3600000)} hrs ${(num% 3600000) / 60000} mins SIZE ${allEvents.size}")
     }
 
     fun getUsageOfAllApps(startTime:Long, endTime:Long, appList: MutableList<String>): Map<String, Long> {
@@ -233,6 +186,10 @@ class appStats(context: Context) {
         return num
     }
 
+    fun getUsageToday(name:String): Long {
+        return getUsageOfSpecificApp(name, getMidNight().timeInMillis, System.currentTimeMillis())
+    }
+
     fun getUsagesWAveragesForSpecificApp(name: String): usageTimes {
         val usage:usageTimes = usageTimes()
         val calendar = Calendar.getInstance()
@@ -245,7 +202,10 @@ class appStats(context: Context) {
         val test = Calendar.getInstance()
         test.set(Calendar.DAY_OF_MONTH, daysThisMonth + 15)
 
+
+
         usage.UsageToday = getUsageOfSpecificApp(name, midNight, rightNow )
+        Log.d("nigger", "${getUsageOfSpecificApp(name, midNight, rightNow )}")
         Log.d("Calendar$$$", "${getTimeInMillyOfSpecificDateAndTime((daysThisMonth - 1) - 30)}")
         usage.UsageThisWeek = getUsageOfSpecificApp(name, startOfWeek, rightNow)
         if (daysThisWeek == 0){
@@ -268,13 +228,14 @@ class appStats(context: Context) {
         val usageValuesByDay = mutableListOf<Long>()
         val daysList: List<String> = listOf<String>("Sun", "Mon", "Tues", "Weds", "Thurs", "Fri", "Sat")
         var dayIt = getTimeInMillySinceLastSunday()
-        for(x in 0..6){
-            if(x == 0){
+        for(x in 1..7){
+            if(x == 1){
                 Log.d("getspecificapp", "-----------------------------------------------")
                 usageValuesByDay.add(getUsageOfSpecificApp(name, dayIt, (dayIt + dayInMilly) - 1))
                 dayIt+= dayInMilly
                 Log.d("getspecificapp", "-----------------------------------------------")
             }else if(x == dayOfWeek){
+                Log.d("nigger", "Today ${getUsageOfSpecificApp(name, dayIt, System.currentTimeMillis())}")
                 usageValuesByDay.add(getUsageOfSpecificApp(name, dayIt, System.currentTimeMillis()))
             }else if (x > dayOfWeek){
                 usageValuesByDay.add(0)
@@ -293,24 +254,6 @@ class appStats(context: Context) {
 
         return usageValuesByDay
     }
-
-    data class formatedMilliseconds(
-        var hours:Float = 0f,
-        var mins:Float = 0f,
-        var secs:Float = 0f
-            )
-
-    fun formatMilliseconds(entry: Long): formatedMilliseconds {
-        val formatted = formatedMilliseconds()
-        formatted.hours = (entry / hourInMilly).toFloat()
-        formatted.mins = ((entry % hourInMilly) / 60000).toFloat()
-        formatted.secs = (((entry % hourInMilly) % 60000) / 1000).toFloat()
-
-        Log.d("USAGE_BY_DAY", "${formatted.hours} H ${formatted.mins} m ${formatted.secs} s")
-        return formatted
-    }
-
-
 }
 
 
